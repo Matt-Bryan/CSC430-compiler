@@ -1,0 +1,4 @@
+var i; var j; var b;
+j = undefined;
+i = 3;
+b = j > i;

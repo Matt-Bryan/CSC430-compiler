@@ -1,7 +1,8 @@
 #!/bin/csh -f
 
-foreach i ( tests/${2}/*.nex )
-  echo ==== $i ====
-  ${1} ${3} $i
-end
-
+if (-d tests/${2}) then
+   foreach i ( tests/${2}/*.nex )
+     echo ==== $i ====
+     ${1} ${3} $i
+   end
+endif

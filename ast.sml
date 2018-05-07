@@ -1,26 +1,26 @@
 datatype binaryOperator =
-     BOP_PLUS
-   | BOP_MINUS
-   | BOP_TIMES
-   | BOP_DIVIDE
-   | BOP_MOD
-   | BOP_EQ
-   | BOP_NE
-   | BOP_LT
-   | BOP_GT
-   | BOP_LE
-   | BOP_GE
-   | BOP_AND
-   | BOP_OR
+    BOP_PLUS
+|   BOP_MINUS
+|   BOP_TIMES
+|   BOP_DIVIDE
+|   BOP_MOD
+|   BOP_EQ
+|   BOP_NE
+|   BOP_LT
+|   BOP_GT
+|   BOP_LE
+|   BOP_GE
+|   BOP_AND
+|   BOP_OR
 ;
 
 datatype unaryOperator =
-     UOP_NOT
+	 UOP_NOT
    | UOP_MINUS
 ;
 
 datatype expression =
-     EXP_ID of string
+	 EXP_ID of string
    | EXP_NUM of int
    | EXP_STRING of string
    | EXP_TRUE
