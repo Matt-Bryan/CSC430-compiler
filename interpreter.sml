@@ -1,13 +1,5 @@
 use "parser.sml";
 
-open HashTable;
-
-exception CannotFindIt;
-
-val hash_fn : string->word = HashString.hashString;
-val cmp_fn : string*string->bool = (op =);
-val initial_size : int = 101;
-
 datatype interpretValue =
 	BOOLEAN of bool
 |	STRING of string
@@ -15,6 +7,14 @@ datatype interpretValue =
 |	ID of string
 |	UNDEFINED
 ;
+
+open HashTable;
+
+exception CannotFindIt;
+
+val hash_fn : string->word = HashString.hashString;
+val cmp_fn : string*string->bool = (op =);
+val initial_size : int = 101;
 
 fun getIdFromExp (EXP_ID x) = x;
 
@@ -60,109 +60,87 @@ fun getBoolFromValue (BOOLEAN x) = x;
 
 fun getIdFromValue (ID x) = x;
 
-fun isValidExpressionEq_Helper stateTbl (EXP_BINARY {opr, lft, rht}) =
-	let
-		val (leftValue, newStateTbl1) = interpretExpression stateTbl lft;
-		val (rightValue, newStateTbl2) = interpretExpression newStateTbl1 rht;
-	in
-		if valueIsBool leftValue andalso valueIsBool rightValue
-		then true
-		else if valueIsString leftValue andalso valueIsString rightValue
-			 then true
-			 else if valueIsNum leftValue andalso valueIsNum rightValue
-			 	  then true
-			 	  else if valueIsUndefined leftValue andalso valueIsUndefined rightValue
-			 	  	   then true
-			 	  	   else false
-	end
-
-(*Checks to see if expression's lft and rht types are correct for operator*)
-(*TODO redo without interpretation of expression*)
-and isValidExpression stateTbl (EXP_ASSIGN {lhs, rhs}) =
-	true (*TODO*)
-|	isValidExpression stateTbl (EXP_UNARY {opr, opnd}) =
-	if opr = UOP_NOT
-	then (valueIsBool (#1 (interpretExpression stateTbl opnd)))
-	else (valueIsNum (#1 (interpretExpression stateTbl opnd)))
-|	isValidExpression stateTbl (EXP_BINARY {opr=BOP_EQ, lft, rht}) =
-	isValidExpressionEq_Helper stateTbl (EXP_BINARY {opr=BOP_EQ, lft=lft, rht=rht})
-|	isValidExpression stateTbl (EXP_BINARY {opr=BOP_NE, lft, rht}) =
-	isValidExpressionEq_Helper stateTbl (EXP_BINARY {opr=BOP_NE, lft=lft, rht=rht})
-|	isValidExpression stateTbl (EXP_BINARY {opr, lft, rht}) =
-	let
-		val (leftValue, newStateTbl1) = interpretExpression stateTbl lft;
-		val (rightValue, newStateTbl2) = interpretExpression newStateTbl1 rht;
-	in
-		if binOprIsBool opr andalso valueIsBool leftValue andalso valueIsBool rightValue
-		then true
-		else if binOprIsMath opr andalso valueIsNum leftValue andalso valueIsNum rightValue
-			 then true
-			 else if opr = BOP_PLUS andalso valueIsString leftValue andalso valueIsString rightValue
-			 	  then true
-			 	  else false
-	end
-
-and interpretBinaryExpression stateTbl (EXP_BINARY {opr, lft, rht}) =
-	if isValidExpression stateTbl (EXP_BINARY {opr=opr, lft=lft, rht=rht})
-	then
-		if binOprIsBool opr
-		then (*Boolean operation*)
-			let
-				val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft;
-			 	val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
-			 	val leftValue = getBoolFromValue interpretedLft;
-			 	val rightValue = getBoolFromValue interpretedRht;
-			in
-				case opr of
-					BOP_AND => if not leftValue then (BOOLEAN false, newStateTbl2) else (BOOLEAN rightValue, newStateTbl2)
-				|	BOP_OR => if leftValue then (BOOLEAN true, newStateTbl2) else (BOOLEAN rightValue, newStateTbl2)
-			end
-		else if binOprIsEq opr
-			 then (*Eqality operation*)
-			 	case opr of
-			 		BOP_EQ =>
-			 			let
-			 				val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft
-			 				val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht
-			 			in
-			 				(BOOLEAN (interpretedLft = interpretedRht), newStateTbl2)
-			 			end
-			 	|	BOP_NE =>
-			 			let
-			 				val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft
-			 				val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht
-			 			in
-			 				(BOOLEAN (not (interpretedLft = interpretedRht)), newStateTbl2)
-			 			end
-			 else if binOprIsMath opr andalso not (valueIsString (#1 (interpretExpression stateTbl lft)))
-			 	  then (*Math operation*)
-			 	  	let
-			 	  		val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft;
-			 	  		val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
-			 	  		val leftValue = getNumFromValue interpretedLft;
-			 	  		val rightValue = getNumFromValue interpretedRht;
-			 	  	in
-			 	  		case opr of
-			 	  			BOP_PLUS => (NUMBER (leftValue + rightValue), newStateTbl2)
-			 	  		|	BOP_MINUS => (NUMBER (leftValue - rightValue), newStateTbl2)
-			 	  		|	BOP_TIMES => (NUMBER (leftValue * rightValue), newStateTbl2)
-			 	  		|	BOP_DIVIDE => (NUMBER (leftValue div rightValue), newStateTbl2)
-			 	  		|	BOP_MOD => (NUMBER (leftValue mod rightValue), newStateTbl2)
-			 	  		|	BOP_LT => (BOOLEAN (leftValue < rightValue), newStateTbl2)
-			 	  		|	BOP_LE => (BOOLEAN (leftValue <= rightValue), newStateTbl2)
-			 	  		|	BOP_GT => (BOOLEAN (leftValue > rightValue), newStateTbl2)
-			 	  		|	BOP_GE => (BOOLEAN (leftValue >= rightValue), newStateTbl2)
-			 	  	end
-			 	  else if opr = BOP_PLUS
-			 	  	   then 
-			 	  	   		let
-			 	  	   			val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft;
-			 	  	   			val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
-			 	  	   		in
-			 	  	   			(STRING (getStringFromValue interpretedLft ^ getStringFromValue interpretedRht), newStateTbl2)
-			 	  	   		end
-			 	  	   else errorOut "Error in binary operation\n"
-	else errorOut "Bad type in binary expression\n"
+fun interpretBinaryExpression stateTbl (EXP_BINARY {opr, lft, rht}) =
+	if binOprIsBool opr
+	then (*Boolean operation*)
+		let
+			val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft;
+			val leftValue = if valueIsBool interpretedLft then getBoolFromValue interpretedLft else errorOut "And/or must have boolean operands\n";
+		in
+			if opr = BOP_OR
+			then if leftValue
+				 then (BOOLEAN true, newStateTbl1)
+				 else
+				 	let
+				 		val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
+						val rightValue = getBoolFromValue interpretedRht;
+				 	in
+				 		(BOOLEAN rightValue, newStateTbl2)
+				 	end
+			else
+				if not leftValue then (BOOLEAN false, newStateTbl1) else
+				let
+				 	val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
+					val rightValue = getBoolFromValue interpretedRht;
+				in
+				 	(BOOLEAN (leftValue andalso rightValue), newStateTbl2)
+				end
+		end
+	else if binOprIsEq opr
+		 then (*Eqality operation*)
+			case opr of
+			 	BOP_EQ =>
+			 		let
+			 			val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft
+			 			val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht
+			 		in
+			 			(BOOLEAN (interpretedLft = interpretedRht), newStateTbl2)
+			 		end
+			 |	BOP_NE =>
+			 		let
+			 			val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft
+			 			val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht
+			 		in
+			 			(BOOLEAN (not (interpretedLft = interpretedRht)), newStateTbl2)
+			 		end
+		 else (*Math operation*)
+			 	let
+			 	  	val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft;
+			 	  	val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
+			 	  	val leftValue = if valueIsString interpretedLft
+			 	  					then if not (valueIsString interpretedRht)
+										 then errorOut "Types must match in arithmetic operator\n"
+										 else 0
+									else if not (valueIsNum interpretedRht)
+										 then errorOut "Types must match in arithmetic operator\n"
+										 else getNumFromValue interpretedLft;
+			 	  	val rightValue = if valueIsString interpretedRht
+			 	  					 then 0
+			 	  					 else getNumFromValue interpretedRht;
+			 	in
+			 		if not (opr = BOP_PLUS) andalso valueIsString interpretedLft then errorOut "Int type required for arithmetic operations\n" else
+			 	  	case opr of
+			 	  		BOP_PLUS => if valueIsNum interpretedLft
+			 	  					then (NUMBER (leftValue + rightValue), newStateTbl2)
+			 	  					else (STRING (getStringFromValue interpretedLft ^ getStringFromValue interpretedRht), newStateTbl2)
+			 	  	|	BOP_MINUS => (NUMBER (leftValue - rightValue), newStateTbl2)
+			 	  	|	BOP_TIMES => (NUMBER (leftValue * rightValue), newStateTbl2)
+			 	  	|	BOP_DIVIDE => (NUMBER (leftValue div rightValue), newStateTbl2)
+			 	  	|	BOP_MOD => (NUMBER (leftValue mod rightValue), newStateTbl2)
+			 	  	|	BOP_LT => (BOOLEAN (leftValue < rightValue), newStateTbl2)
+			 	  	|	BOP_LE => (BOOLEAN (leftValue <= rightValue), newStateTbl2)
+			 	  	|	BOP_GT => (BOOLEAN (leftValue > rightValue), newStateTbl2)
+			 	  	|	BOP_GE => (BOOLEAN (leftValue >= rightValue), newStateTbl2)
+			 	end
+			 	(*else if opr = BOP_PLUS
+			 				 	  	 then 
+			 				 	  	   	let
+			 				 	  	   		val (interpretedLft, newStateTbl1) = interpretExpression stateTbl lft;
+			 				 	  	   		val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
+			 				 	  	   	in
+			 				 	  	   		(STRING (getStringFromValue interpretedLft ^ getStringFromValue interpretedRht), newStateTbl2)
+			 				 	  	   	end
+			 				 	  	else errorOut "Error in binary operation\n"*)
 
 and interpretExpression stateTbl EXP_TRUE = (BOOLEAN true, stateTbl)
 |	interpretExpression stateTbl EXP_FALSE = (BOOLEAN false, stateTbl)
@@ -174,28 +152,27 @@ and interpretExpression stateTbl EXP_TRUE = (BOOLEAN true, stateTbl)
 		val optionValue = find stateTbl x;
 	in
 		if isSome optionValue
-		then (NUMBER (valOf optionValue), stateTbl)
+		then (valOf optionValue, stateTbl)
 		else errorOut ("Variable not found: '" ^ x ^ "'\n")
 	end
 |	interpretExpression stateTbl (EXP_BINARY {opr, lft, rht}) = 
 	interpretBinaryExpression stateTbl (EXP_BINARY {opr=opr, lft=lft, rht=rht})
 |	interpretExpression stateTbl (EXP_UNARY {opr, opnd}) =
-	if isValidExpression stateTbl (EXP_UNARY {opr=opr, opnd=opnd})
+	if opr = UOP_NOT
 	then
-		case opr of
-			UOP_NOT =>
-				let
-					val (interpreted, newStateTbl) = interpretExpression stateTbl opnd;
-				in
-					(BOOLEAN (not (getBoolFromValue interpreted)), newStateTbl)
-				end
-		|	UOP_MINUS =>
-				let
-					val (interpreted, newStateTbl) = interpretExpression stateTbl opnd;
-				in
-					(NUMBER (~ (getNumFromValue interpreted)), newStateTbl)
-				end
-	else errorOut "Bad type in unary expression\n"
+		let
+			val (interpreted, newStateTbl) = interpretExpression stateTbl opnd;
+		in
+			if not (valueIsBool interpreted) then errorOut "Not requires boolean type\n" else
+			(BOOLEAN (not (getBoolFromValue interpreted)), newStateTbl)
+		end
+	else
+		let
+			val (interpreted, newStateTbl) = interpretExpression stateTbl opnd;
+		in
+			if not (valueIsNum interpreted) then errorOut "Minus requires number type\n" else
+			(NUMBER (~ (getNumFromValue interpreted)), newStateTbl)
+		end
 |	interpretExpression stateTbl (EXP_COND {guard, thenExp, elseExp}) =
 	let
 		val (interpreted, newStateTbl) = interpretExpression stateTbl guard;
@@ -214,7 +191,7 @@ and interpretExpression stateTbl EXP_TRUE = (BOOLEAN true, stateTbl)
 	in
 		if not (isSome testIfDeclared)
 		then errorOut ("Variable '" ^ assignedId ^ "' not declared\n")
-		else (insert newStateTbl (assignedId, getNumFromValue interpreted); (ID (getIdFromExp lhs), stateTbl))
+		else (insert newStateTbl (assignedId, interpreted); (interpretExpression newStateTbl lhs))
 	end
 ;
 
@@ -246,7 +223,14 @@ fun interpretStatement stateTbl (ST_EXP {exp}) =
 		if valueIsUndefined interpreted
 		then (TextIO.print "undefined"; newStateTbl)
 		else if valueIsNum interpreted
-			 then (TextIO.print (Int.toString (getNumFromValue interpreted)); newStateTbl)
+			 then
+			 	let
+			 		val number = getNumFromValue interpreted;
+			 	in
+			 		if number < 0
+			 		then (TextIO.print ("-" ^ (Int.toString (number * ~1))); newStateTbl)
+			 		else (TextIO.print (Int.toString number); newStateTbl)
+			 	end
 			 else if valueIsBool interpreted
 			 	  then if interpreted = BOOLEAN true then (TextIO.print "true"; newStateTbl) else (TextIO.print "false"; newStateTbl)
 			 	  else if valueIsId interpreted
@@ -284,7 +268,7 @@ fun interpretVarList stateTbl [] = stateTbl
 	if not (isSome (find stateTbl firstString))
 	then
 		let
-			val nothing = insert stateTbl (firstString, ~9999); (*Ask what value to initialize*)
+			val nothing = insert stateTbl (firstString, UNDEFINED); (*Ask what value to initialize*)
 		in
 			interpretVarList stateTbl restStrings
 		end
@@ -302,7 +286,7 @@ fun interpretAST stateTbl (PROGRAM {decls:string list, stmts:statement list}) =
 fun interpret fileName =
 	let
 		val parsedProgram = parse fileName;
-		val stateTbl : (string,int) hash_table = mkTable (hash_fn, cmp_fn) (initial_size, CannotFindIt);
+		val stateTbl : (string, interpretValue) hash_table = mkTable (hash_fn, cmp_fn) (initial_size, CannotFindIt);
 	in
 		interpretAST stateTbl parsedProgram
 	end;

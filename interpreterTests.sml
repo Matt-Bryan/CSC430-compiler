@@ -8,7 +8,7 @@ val hash_fn : string->word = HashString.hashString;
 val cmp_fn : string*string->bool = (op =);
 val initial_size : int = 101;
 
-val stateTbl : (string,int) hash_table = mkTable (hash_fn, cmp_fn) (initial_size, CannotFindIt);
+val stateTbl : (string,interpretValue) hash_table = mkTable (hash_fn, cmp_fn) (initial_size, CannotFindIt);
 
 #1 (interpretExpression stateTbl EXP_TRUE) = BOOLEAN true;
 #1 (interpretExpression stateTbl EXP_FALSE) = BOOLEAN false;
@@ -30,10 +30,8 @@ val stateTbl : (string,int) hash_table = mkTable (hash_fn, cmp_fn) (initial_size
 #1 (interpretExpression stateTbl (EXP_COND {guard=EXP_TRUE, thenExp=(EXP_NUM 5), elseExp=(EXP_STRING "abc")})) = NUMBER 5;
 #1 (interpretExpression stateTbl (EXP_COND {guard=EXP_FALSE, thenExp=(EXP_NUM 5), elseExp=(EXP_STRING "abc")})) = STRING "abc";
 
-use "hashTableTests.sml";
+interpretVarList stateTbl ["testVar"];
 
-interpretVarList tbl ["testVar"];
+#1 (interpretExpression stateTbl (EXP_ASSIGN {lhs=(EXP_ID "testVar"), rhs=(EXP_NUM 5)})) = NUMBER 5;
 
-interpretExpression tbl (EXP_ASSIGN {lhs=(EXP_ID "testVar"), rhs=(EXP_NUM 5)});
-
-#1 (interpretExpression tbl (EXP_ID "testVar")) = NUMBER 5;
+#1 (interpretExpression stateTbl (EXP_ID "testVar")) = NUMBER 5;
