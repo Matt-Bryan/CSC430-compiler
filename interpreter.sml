@@ -73,7 +73,7 @@ fun interpretBinaryExpression stateTbl (EXP_BINARY {opr, lft, rht}) =
 				 else
 				 	let
 				 		val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
-						val rightValue = getBoolFromValue interpretedRht;
+						val rightValue = if valueIsBool interpretedRht then getBoolFromValue interpretedRht else errorOut "And/or must have boolean operands\n";
 				 	in
 				 		(BOOLEAN rightValue, newStateTbl2)
 				 	end
@@ -81,7 +81,7 @@ fun interpretBinaryExpression stateTbl (EXP_BINARY {opr, lft, rht}) =
 				if not leftValue then (BOOLEAN false, newStateTbl1) else
 				let
 				 	val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
-					val rightValue = getBoolFromValue interpretedRht;
+					val rightValue = if valueIsBool interpretedRht then getBoolFromValue interpretedRht else errorOut "And/or must have boolean operands\n";
 				in
 				 	(BOOLEAN (leftValue andalso rightValue), newStateTbl2)
 				end
@@ -109,10 +109,10 @@ fun interpretBinaryExpression stateTbl (EXP_BINARY {opr, lft, rht}) =
 			 	  	val (interpretedRht, newStateTbl2) = interpretExpression newStateTbl1 rht;
 			 	  	val leftValue = if valueIsString interpretedLft
 			 	  					then if not (valueIsString interpretedRht)
-										 then errorOut "Types must match in arithmetic operator\n"
+										 then errorOut "Arithmetic operands must both be numbers or strings\n"
 										 else 0
-									else if not (valueIsNum interpretedRht)
-										 then errorOut "Types must match in arithmetic operator\n"
+									else if not (valueIsNum interpretedRht) orelse not (valueIsNum interpretedLft)
+										 then errorOut "Arithmetic operands must both be numbers or strings\n"
 										 else getNumFromValue interpretedLft;
 			 	  	val rightValue = if valueIsString interpretedRht
 			 	  					 then 0
@@ -212,9 +212,11 @@ fun interpretStatement stateTbl (ST_EXP {exp}) =
 	let
 		val (interpreted, newStateTbl) = interpretExpression stateTbl guard;
 	in
-		if getBoolFromValue interpreted
-		then interpretStatement newStateTbl th
-		else interpretStatement newStateTbl el
+		if valueIsBool interpreted
+		then if getBoolFromValue interpreted
+			 then interpretStatement newStateTbl th
+			 else interpretStatement newStateTbl el
+		else errorOut "If statement conditional requires boolean type\n"
 	end
 |	interpretStatement stateTbl (ST_PRINT {exp}) =
 	let
@@ -250,7 +252,7 @@ fun interpretStatement stateTbl (ST_EXP {exp}) =
 			in
 				interpretStatement newStateTbl2 (ST_WHILE {guard=guard, body=body})
 			end
-		else newStateTbl
+		else if interpreted = BOOLEAN false then newStateTbl else errorOut "While condition requires boolean type\n"
 	end
 ;
 
