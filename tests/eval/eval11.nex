@@ -1,3 +1,0 @@
-var id;
-print id;
-print "\n";

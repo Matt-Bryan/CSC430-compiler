@@ -1,8 +1,0 @@
-var r;
-var pi1000;
-var area;
-pi1000 = 3141;
-r = 9;
-area = (r * r * pi1000) / 1000;
-print area;
-print "\n";
